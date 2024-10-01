@@ -1,0 +1,166 @@
+---
+title: "Mini Project"
+author: "S/18/824"
+date: "2024-04-03"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load the necessary packages
+```{r}
+library(tidyverse)
+library(psych)
+library(GPArotation)
+library(lavaan)
+```
+
+Import the data set
+This data set have 16 columns.I consider only numerical columns for the analysis 
+```{r}
+dry_bean <- read_csv("../data/Dry_Bean_Dataset.csv",col_types = "idddddiddddddddd")
+head(dry_bean)
+```
+```{r}
+glimpse(dry_bean)
+```
+##This dataset have 16 columns and 13611 rows.
+```{r}
+str(dry_bean)
+```
+
+
+Check for missing values
+```{r}
+sum(is.na(dry_bean))
+```
+
+Describe the data set
+```{r}
+describe(dry_bean)
+```
+
+Standardized the data set
+
+```{r}
+std_dry_bean <- scale(dry_bean)
+std_dry_bean
+```
+
+Get the correlation matrix of standardized data
+```{r}
+dry_bean_cor <- cor(std_dry_bean)
+dry_bean_cor
+```
+
+Find the eigen values and eigen vectors of above correlation matrix
+```{r}
+dry_bean_eigen <- eigen(dry_bean_cor)
+
+#Eigen values
+dry_bean_eigen$values
+
+#Eigen vectors
+dry_bean_eigen$vectors
+```
+
+##According to the eigen values we select number of factor as 3.
+##Because first 3 eigen values are greater than 1.
+
+Proportion of variance explained
+```{r}
+prop_var <- dry_bean_eigen$values/sum(dry_bean_eigen$values)
+prop_var
+```
+Draw the scree plot
+```{r}
+scree(dry_bean)
+```
+
+##From the above scree plot after dimension 4 graph gradually bendsoff, so we select number of factor as 3 
+##That is adequately retained the dataset
+Parallel analysis Scree Plots
+```{r}
+fa.parallel(dry_bean,fm="pa",fa="fa")
+```
+##From the scree plot we can see that number of factors to be 3.
+
+a.) Factor Analysis from 'Principal Component Method'
+```{r}
+dry_bean_pc <- fa(dry_bean_cor,nfactors = 3,rotate = FALSE,fm = "pa")
+dry_bean_pc
+```
+Get un rotated loadings from PC method
+```{r}
+print(dry_bean_pc$loadings,cutoff = 0.3)
+```
+##From the above results we can see that some variables are cross loading with more principal components.
+##So, to identify the factors clearly we need to rotate it inorder to get the clear interpretation.
+##About 91 % of total variation is explained by the 3 factors.
+
+Get unrotated PC method communalities 
+```{r}
+dry_bean_pc$communalities
+```
+
+Rotate the PC method factor loadings using 'Varimax' method
+```{r}
+dry_bean_pc_rotate <- fa(dry_bean_cor,nfactors = 3,rotate = "promax",fm = 'pa')
+dry_bean_pc_rotate
+```
+```{r}
+print(dry_bean_pc_rotate$loadings,cutoff = 0.5,sort = TRUE)
+```
+```{r}
+model <- '
+DM =~Area+Perimeter+MajorAxisLength+MinorAxisLength+ConvexArea+EquivDiameter+ShapeFactor1
+RM =~AspectRation+Eccentricity+roundness+Compactness++ShapeFactor2+ShapeFactor3
+PM =~Solidity'
+
+fit <- cfa(model,data = dry_bean)
+
+
+summary(fit,fit.measures = TRUE,standardized = TRUE)
+```
+Since variances of some variables are very high, and dataset doesnot converge.So, We can use some other techniques. 
+
+Get rotated communalities in PC method
+```{r}
+dry_bean_pc_rotate$communalities
+```
+
+b.) Factor Analysis from 'Maximum Likelihood Method'
+```{r}
+dry_bean_ml <- fa(dry_bean_cor,nfactors = 3,rotate = FALSE, fm = 'ml')
+dry_bean_ml
+```
+Get unrotated ML loadings 
+```{r}
+print(dry_bean_ml$loadings)
+```
+##Here, we can't clearly understand the factors because some variables are crossed with more than 2 factors.So we need to rotate it.
+
+Get unrotated Communalities in ML method
+```{r}
+dry_bean_ml$communalities
+```
+Rotate the ML method factor loadings using 'Varimax' method
+```{r}
+dry_bean_ml_rotate <- fa(dry_bean_cor,nfactors = 3,rotate = "varimax",fm = 'ml')
+dry_bean_ml_rotate
+```
+
+Get rotated ML loadings
+```{r}
+print(dry_bean_ml_rotate$loadings,cutoff = 0.5)
+```
+##From this about 81.9 % of total variation is explained by these factors.
+
+```{r}
+dry_bean_ml_rotate$communalities
+```
+
